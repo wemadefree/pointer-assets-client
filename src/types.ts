@@ -27,6 +27,8 @@ export interface CreateAssetInput {
   name: string;
   mimeType: string;
   size: number;
+  entityType?: string;
+  entityId?: string;
 }
 
 export interface AssetUploadTarget {
@@ -47,4 +49,6 @@ export interface CreateAndUploadInput {
   data: AssetUploadData;
   name?: string;
   mimeType?: string;
+  entityType?: string;
+  entityId?: string;
 }

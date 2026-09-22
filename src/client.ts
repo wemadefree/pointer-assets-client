@@ -124,6 +124,14 @@ function validateCreateInput(input: CreateAssetInput): void {
       `size must be an integer between 1 and ${MAX_UPLOAD_SIZE_BYTES} bytes`,
     );
   }
+  if (
+    (input.entityType === undefined) !==
+    (input.entityId === undefined)
+  ) {
+    throw new PointerAssetsInvalidArgumentError(
+      "entityType and entityId must be supplied together",
+    );
+  }
 }
 
 function createInputFromData(input: CreateAndUploadInput): CreateAssetInput {
@@ -145,7 +153,13 @@ function createInputFromData(input: CreateAndUploadInput): CreateAssetInput {
   }
 
   const size = assetDataSize(input.data);
-  return { name, mimeType, size };
+  return {
+    name,
+    mimeType,
+    size,
+    ...(input.entityType === undefined ? {} : { entityType: input.entityType }),
+    ...(input.entityId === undefined ? {} : { entityId: input.entityId }),
+  };
 }
 
 function assetDataSize(data: AssetUploadData): number {

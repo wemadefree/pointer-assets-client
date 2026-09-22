@@ -123,6 +123,44 @@ describe("typed errors", () => {
     },
   );
 
+  it.each([
+    { entityType: "projects" },
+    { entityId: "project-123" },
+  ])("rejects an incomplete entity association: %o", async (association) => {
+    const fetch = vi.fn<typeof globalThis.fetch>();
+    const client = createClient(fetch);
+
+    await expect(
+      client.create({
+        name: "file",
+        mimeType: "text/plain",
+        size: 1,
+        ...association,
+      }),
+    ).rejects.toBeInstanceOf(PointerAssetsInvalidArgumentError);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { entityType: "projects" },
+    { entityId: "project-123" },
+  ])(
+    "rejects an incomplete createAndUpload entity association: %o",
+    async (association) => {
+      const fetch = vi.fn<typeof globalThis.fetch>();
+      const client = createClient(fetch);
+
+      await expect(
+        client.createAndUpload({
+          data: new Blob(["x"], { type: "text/plain" }),
+          name: "file",
+          ...association,
+        }),
+      ).rejects.toBeInstanceOf(PointerAssetsInvalidArgumentError);
+      expect(fetch).not.toHaveBeenCalled();
+    },
+  );
+
   it("validates empty asset identifiers", async () => {
     const client = createClient(vi.fn<typeof globalThis.fetch>());
 

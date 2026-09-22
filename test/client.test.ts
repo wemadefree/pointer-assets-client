@@ -60,6 +60,29 @@ describe("PointerAssetsClient request construction", () => {
     );
   });
 
+  it("forwards an optional entity association exactly", async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(
+      jsonResponse({ asset, upload }),
+    );
+    const client = createClient(fetch);
+
+    await client.create({
+      name: "hello world.txt",
+      mimeType: "text/plain",
+      size: 5,
+      entityType: "projects",
+      entityId: "project/123",
+    });
+
+    expect(JSON.parse(String(fetch.mock.calls[0]![1]?.body))).toEqual({
+      name: "hello world.txt",
+      mimeType: "text/plain",
+      size: 5,
+      entityType: "projects",
+      entityId: "project/123",
+    });
+  });
+
   it("encodes asset IDs for get and delete", async () => {
     const fetch = vi
       .fn<typeof globalThis.fetch>()
@@ -119,12 +142,20 @@ describe("PointerAssetsClient request construction", () => {
     const client = createClient(fetch);
     const data = new File(["hello"], "hello world.txt", { type: "text/plain" });
 
-    await expect(client.createAndUpload({ data })).resolves.toEqual(asset);
+    await expect(
+      client.createAndUpload({
+        data,
+        entityType: "projects",
+        entityId: "project-123",
+      }),
+    ).resolves.toEqual(asset);
 
     expect(JSON.parse(String(fetch.mock.calls[0]![1]?.body))).toEqual({
       name: "hello world.txt",
       mimeType: "text/plain",
       size: 5,
+      entityType: "projects",
+      entityId: "project-123",
     });
     expect(fetch.mock.calls[1]![1]?.body).toBe(data);
   });

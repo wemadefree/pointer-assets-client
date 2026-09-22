@@ -82,6 +82,8 @@ const created = await assets.create({
   name: file.name,
   mimeType: file.type,
   size: file.size,
+  entityType: "projects",
+  entityId: "project-123",
 });
 
 await assets.upload(created.upload, file);
@@ -89,6 +91,7 @@ await assets.upload(created.upload, file);
 
 Returns asset metadata and an opaque, short-lived upload target.
 `size` must be between 1 byte and 50 MiB (`MAX_UPLOAD_SIZE_BYTES`).
+`entityType` and `entityId` are optional, but must be provided together. The backend validates access to the referenced entity and resolves customer ownership; the SDK does not expose ownership or relation internals.
 
 ### `upload(target, data)`
 
@@ -99,6 +102,8 @@ Uploads a `Blob`, `ArrayBuffer`, or typed-array view directly to the backend-aut
 ```ts
 const asset = await assets.createAndUpload({
   data: file,
+  entityType: "projects",
+  entityId: "project-123",
 });
 ```
 
