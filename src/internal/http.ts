@@ -24,6 +24,9 @@ export class ApiHttpClient {
   ) {
     try {
       this.baseUrl = new URL(apiBaseUrl);
+      if (!this.baseUrl.pathname.endsWith("/")) {
+        this.baseUrl.pathname += "/";
+      }
     } catch {
       throw new TypeError("apiBaseUrl must be an absolute URL");
     }
@@ -32,7 +35,7 @@ export class ApiHttpClient {
   }
 
   resolveApiPath(path: string): URL {
-    return new URL(path, this.baseUrl);
+    return new URL(path.replace(/^\/+/, ""), this.baseUrl);
   }
 
   resolveAssetUrl(path: string): URL {

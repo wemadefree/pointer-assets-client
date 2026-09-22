@@ -7,6 +7,41 @@ afterEach(() => {
 });
 
 describe("PointerAssetsClient request construction", () => {
+  it.each([
+    ["https://pointer.example.com/api", "/api/"],
+    ["https://pointer.example.com/api/", "/api/"],
+    ["https://pointer.example.com", "/"],
+  ])(
+    "preserves the configured API base path for %s",
+    async (apiBaseUrl, expectedBasePath) => {
+      const fetch = vi
+        .fn<typeof globalThis.fetch>()
+        .mockResolvedValueOnce(
+          jsonResponse({ expiresAt: "2026-09-22T11:00:00.000Z" }),
+        )
+        .mockResolvedValueOnce(jsonResponse({ asset, upload }))
+        .mockResolvedValueOnce(jsonResponse({ asset }))
+        .mockResolvedValueOnce(new Response(null, { status: 204 }));
+      const client = createClient(fetch, "tenant", undefined, apiBaseUrl);
+
+      await client.refreshSession();
+      await client.create({
+        name: "hello.txt",
+        mimeType: "text/plain",
+        size: 5,
+      });
+      await client.get("asset-1");
+      await client.delete("asset-1");
+
+      expect(fetch.mock.calls.map(([url]) => new URL(String(url)).pathname)).toEqual([
+        `${expectedBasePath}xrm-db/v1beta1/tenants/tenant/portalAssets:refreshSession`,
+        `${expectedBasePath}xrm-db/v1beta1/tenants/tenant/portalAssets:createUpload`,
+        `${expectedBasePath}xrm-db/v1beta1/tenants/tenant/portalAssets/asset-1`,
+        `${expectedBasePath}xrm-db/v1beta1/tenants/tenant/portalAssets/asset-1`,
+      ]);
+    },
+  );
+
   it("binds the default browser fetch to globalThis", async () => {
     let receiver: unknown;
     const defaultFetch = vi.fn(function (this: unknown) {
@@ -203,12 +238,23 @@ describe("PointerAssetsClient request construction", () => {
           headers: { "content-type": "text/plain" },
         }),
       );
-    const client = createClient(fetch);
+    const client = createClient(
+      fetch,
+      "tenant",
+      undefined,
+      "https://pointer.example.com/api",
+    );
 
     const result = await client.download("asset-1");
 
     expect(await result.text()).toBe("hello");
     expect(fetch).toHaveBeenCalledTimes(3);
+    expect(String(fetch.mock.calls[0]![0])).toContain(
+      "https://pointer.example.com/api/xrm-db/",
+    );
+    expect(String(fetch.mock.calls[1]![0])).toContain(
+      "https://pointer.example.com/api/xrm-db/",
+    );
     const [cdnUrl, cdnInit] = fetch.mock.calls[2]!;
     expect(String(cdnUrl)).toBe(
       "https://pointer.example.com/assets/portal/tenant/customers/customer/fileUploads/asset-1/hello%20world.txt",
@@ -278,9 +324,10 @@ function createClient(
   fetch: typeof globalThis.fetch,
   tenantId = "tenant",
   getCustomerId?: () => string | null | undefined,
+  apiBaseUrl = "https://pointer.example.com",
 ): PointerAssetsClient {
   return new PointerAssetsClient({
-    apiBaseUrl: "https://pointer.example.com/api-prefix/",
+    apiBaseUrl,
     tenantId,
     authClient: authClient(),
     fetch,
