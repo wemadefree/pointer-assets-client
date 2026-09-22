@@ -29,6 +29,7 @@ const assets = new PointerAssetsClient({
   apiBaseUrl,
   tenantId: "your-pointer-tenant-id",
   authClient,
+  getCustomerId: () => selectedCustomerId,
 });
 
 const file = new File(["hello"], "hello.txt", { type: "text/plain" });
@@ -64,7 +65,10 @@ Options:
 - `apiBaseUrl`: Pointer API origin/base URL.
 - `tenantId`: Pointer tenant ID. It is URL-encoded by the SDK.
 - `authClient`: structural auth client exposing `getAccessToken()`.
+- `getCustomerId`: optional callback evaluated before every API request. Admin and developer-admin portals should return the currently selected customer ID; portal contacts can omit it because the backend derives their customer ownership.
 - `fetch`: optional `fetch` implementation, primarily for controlled runtimes and tests.
+
+The customer ID is sent only as an encoded `customerId` query parameter. It is never included in create JSON or asset metadata. The backend validates that the authenticated admin can access the selected customer.
 
 ### `refreshSession()`
 

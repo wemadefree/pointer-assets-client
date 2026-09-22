@@ -6,6 +6,7 @@ export interface PointerAssetsClientOptions {
   apiBaseUrl: string;
   tenantId: string;
   authClient: AssetAuthClient;
+  getCustomerId?: () => string | null | undefined;
   fetch?: typeof globalThis.fetch;
 }
 

@@ -23,6 +23,7 @@ import type {
 
 export class PointerAssetsClient {
   private readonly tenantId: string;
+  private readonly getCustomerId: (() => string | null | undefined) | undefined;
   private readonly fetch: typeof globalThis.fetch;
   private readonly http: ApiHttpClient;
 
@@ -38,6 +39,7 @@ export class PointerAssetsClient {
     }
 
     this.tenantId = options.tenantId;
+    this.getCustomerId = options.getCustomerId;
     this.fetch = fetchImplementation;
     this.http = new ApiHttpClient(
       options.apiBaseUrl,
@@ -50,7 +52,7 @@ export class PointerAssetsClient {
     const response = await this.http.requestJson(
       "refreshSession",
       "POST",
-      refreshSessionPath(this.tenantId),
+      this.apiPath(refreshSessionPath(this.tenantId)),
     );
     return parseAssetSession(response);
   }
@@ -60,7 +62,7 @@ export class PointerAssetsClient {
     const response = await this.http.requestJson(
       "create",
       "POST",
-      createUploadPath(this.tenantId),
+      this.apiPath(createUploadPath(this.tenantId)),
       input,
     );
     return parseCreateAssetResult(response);
@@ -82,7 +84,7 @@ export class PointerAssetsClient {
     const response = await this.http.requestJson(
       "get",
       "GET",
-      assetPath(this.tenantId, assetId),
+      this.apiPath(assetPath(this.tenantId, assetId)),
     );
     return parseAssetResponse(response);
   }
@@ -97,8 +99,15 @@ export class PointerAssetsClient {
     validateAssetId(assetId);
     await this.http.requestDelete(
       "delete",
-      assetPath(this.tenantId, assetId),
+      this.apiPath(assetPath(this.tenantId, assetId)),
     );
+  }
+
+  private apiPath(path: string): string {
+    const customerId = this.getCustomerId?.();
+    return customerId
+      ? `${path}?customerId=${encodeURIComponent(customerId)}`
+      : path;
   }
 }
 

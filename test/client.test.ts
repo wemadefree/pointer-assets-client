@@ -28,6 +28,41 @@ describe("PointerAssetsClient request construction", () => {
     );
   });
 
+  it("evaluates and encodes dynamic customer context for each request", async () => {
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockImplementation(async () =>
+        jsonResponse({ expiresAt: "2026-09-22T11:00:00.000Z" }),
+      );
+    const getCustomerId = vi
+      .fn<() => string | undefined>()
+      .mockReturnValueOnce("customer/one")
+      .mockReturnValueOnce("customer two");
+    const client = createClient(fetch, "tenant", getCustomerId);
+
+    await client.refreshSession();
+    await client.refreshSession();
+
+    expect(getCustomerId).toHaveBeenCalledTimes(2);
+    expect(String(fetch.mock.calls[0]![0])).toContain(
+      "portalAssets:refreshSession?customerId=customer%2Fone",
+    );
+    expect(String(fetch.mock.calls[1]![0])).toContain(
+      "portalAssets:refreshSession?customerId=customer%20two",
+    );
+  });
+
+  it("omits empty customer context", async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(
+      jsonResponse({ expiresAt: "2026-09-22T11:00:00.000Z" }),
+    );
+    const client = createClient(fetch, "tenant", () => "");
+
+    await client.refreshSession();
+
+    expect(String(fetch.mock.calls[0]![0])).not.toContain("customerId");
+  });
+
   it("creates an upload with the exact backend DTO", async () => {
     const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(
       jsonResponse({ asset, upload }),
@@ -104,6 +139,32 @@ describe("PointerAssetsClient request construction", () => {
     });
   });
 
+  it("applies customer context to create, get, and delete without adding it to JSON", async () => {
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValueOnce(jsonResponse({ asset, upload }))
+      .mockResolvedValueOnce(jsonResponse({ asset }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    const client = createClient(fetch, "tenant", () => "customer-123");
+
+    await client.create({
+      name: "hello.txt",
+      mimeType: "text/plain",
+      size: 5,
+    });
+    await client.get("asset-1");
+    await client.delete("asset-1");
+
+    for (const [url] of fetch.mock.calls) {
+      expect(String(url)).toContain("?customerId=customer-123");
+    }
+    expect(JSON.parse(String(fetch.mock.calls[0]![1]?.body))).toEqual({
+      name: "hello.txt",
+      mimeType: "text/plain",
+      size: 5,
+    });
+  });
+
   it("gets metadata, refreshes the session, then downloads without bearer auth", async () => {
     const fetch = vi
       .fn<typeof globalThis.fetch>()
@@ -132,6 +193,33 @@ describe("PointerAssetsClient request construction", () => {
       credentials: "include",
     });
     expect(cdnInit?.headers).toBeUndefined();
+  });
+
+  it("resolves customer context separately for download metadata and refresh", async () => {
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValueOnce(jsonResponse({ asset }))
+      .mockResolvedValueOnce(
+        jsonResponse({ expiresAt: "2026-09-22T11:00:00.000Z" }),
+      )
+      .mockResolvedValueOnce(new Response("hello", { status: 200 }));
+    const getCustomerId = vi
+      .fn<() => string>()
+      .mockReturnValueOnce("metadata customer")
+      .mockReturnValueOnce("session/customer");
+    const client = createClient(fetch, "tenant", getCustomerId);
+
+    await client.download("asset-1");
+
+    expect(String(fetch.mock.calls[0]![0])).toContain(
+      "portalAssets/asset-1?customerId=metadata%20customer",
+    );
+    expect(String(fetch.mock.calls[1]![0])).toContain(
+      "portalAssets:refreshSession?customerId=session%2Fcustomer",
+    );
+    expect(String(fetch.mock.calls[2]![0])).toBe(
+      "https://pointer.example.com/assets/portal/tenant/customers/customer/fileUploads/asset-1/hello%20world.txt",
+    );
   });
 
   it("creates and uploads File metadata in one operation", async () => {
@@ -164,11 +252,13 @@ describe("PointerAssetsClient request construction", () => {
 function createClient(
   fetch: typeof globalThis.fetch,
   tenantId = "tenant",
+  getCustomerId?: () => string | null | undefined,
 ): PointerAssetsClient {
   return new PointerAssetsClient({
     apiBaseUrl: "https://pointer.example.com/api-prefix/",
     tenantId,
     authClient: authClient(),
     fetch,
+    ...(getCustomerId === undefined ? {} : { getCustomerId }),
   });
 }
