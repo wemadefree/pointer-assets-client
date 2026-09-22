@@ -1,8 +1,33 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { PointerAssetsClient } from "../src";
 import { asset, authClient, jsonResponse, upload } from "./helpers";
 
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 describe("PointerAssetsClient request construction", () => {
+  it("binds the default browser fetch to globalThis", async () => {
+    let receiver: unknown;
+    const defaultFetch = vi.fn(function (this: unknown) {
+      receiver = this;
+      return Promise.resolve(
+        jsonResponse({ expiresAt: "2026-09-22T11:00:00.000Z" }),
+      );
+    });
+    vi.stubGlobal("fetch", defaultFetch);
+    const client = new PointerAssetsClient({
+      apiBaseUrl: "https://pointer.example.com",
+      tenantId: "tenant",
+      authClient: authClient(),
+    });
+
+    await client.refreshSession();
+
+    expect(receiver).toBe(globalThis);
+    expect(defaultFetch).toHaveBeenCalledOnce();
+  });
+
   it("refreshes the cookie session with the encoded tenant and credentials", async () => {
     const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(
       jsonResponse({ expiresAt: "2026-09-22T11:00:00.000Z" }),

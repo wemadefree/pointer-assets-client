@@ -31,7 +31,11 @@ export class PointerAssetsClient {
     if (!options.tenantId) {
       throw new PointerAssetsInvalidArgumentError("tenantId is required");
     }
-    const fetchImplementation = options.fetch ?? globalThis.fetch;
+    const fetchImplementation =
+      options.fetch ??
+      (typeof globalThis.fetch === "function"
+        ? globalThis.fetch.bind(globalThis)
+        : undefined);
     if (typeof fetchImplementation !== "function") {
       throw new PointerAssetsInvalidArgumentError(
         "A fetch implementation is required",
