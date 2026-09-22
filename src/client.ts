@@ -1,4 +1,5 @@
 import { PointerAssetsInvalidArgumentError } from "./errors";
+import { MAX_UPLOAD_SIZE_BYTES } from "./constants";
 import {
   assetPath,
   createUploadPath,
@@ -114,9 +115,13 @@ function validateCreateInput(input: CreateAssetInput): void {
   if (!input.mimeType) {
     throw new PointerAssetsInvalidArgumentError("mimeType is required");
   }
-  if (!Number.isSafeInteger(input.size) || input.size < 0) {
+  if (
+    !Number.isSafeInteger(input.size) ||
+    input.size < 1 ||
+    input.size > MAX_UPLOAD_SIZE_BYTES
+  ) {
     throw new PointerAssetsInvalidArgumentError(
-      "size must be a non-negative safe integer",
+      `size must be an integer between 1 and ${MAX_UPLOAD_SIZE_BYTES} bytes`,
     );
   }
 }

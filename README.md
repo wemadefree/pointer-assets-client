@@ -88,6 +88,7 @@ await assets.upload(created.upload, file);
 ```
 
 Returns asset metadata and an opaque, short-lived upload target.
+`size` must be between 1 byte and 50 MiB (`MAX_UPLOAD_SIZE_BYTES`).
 
 ### `upload(target, data)`
 

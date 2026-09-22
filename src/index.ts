@@ -1,4 +1,5 @@
 export { PointerAssetsClient } from "./client";
+export { MAX_UPLOAD_SIZE_BYTES } from "./constants";
 export {
   PointerAssetsApiError,
   PointerAssetsAuthenticationError,

@@ -5,6 +5,7 @@ import {
   PointerAssetsClient,
   PointerAssetsInvalidArgumentError,
   PointerAssetsInvalidResponseError,
+  MAX_UPLOAD_SIZE_BYTES,
   PointerAssetsNetworkError,
 } from "../src";
 import { asset, authClient, jsonResponse, upload } from "./helpers";
@@ -92,15 +93,42 @@ describe("typed errors", () => {
     } satisfies Partial<PointerAssetsNetworkError>);
   });
 
-  it("validates caller-controlled identifiers and metadata", async () => {
+  it.each([0, MAX_UPLOAD_SIZE_BYTES + 1])(
+    "rejects an upload size of %i bytes",
+    async (size) => {
+      const fetch = vi.fn<typeof globalThis.fetch>();
+      const client = createClient(fetch);
+
+      await expect(
+        client.create({ name: "file", mimeType: "text/plain", size }),
+      ).rejects.toBeInstanceOf(PointerAssetsInvalidArgumentError);
+      expect(fetch).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([1, MAX_UPLOAD_SIZE_BYTES])(
+    "accepts an upload size of %i bytes",
+    async (size) => {
+      const fetch = vi
+        .fn<typeof globalThis.fetch>()
+        .mockResolvedValue(jsonResponse({ asset, upload }));
+      const client = createClient(fetch);
+
+      await expect(
+        client.create({ name: "file", mimeType: "text/plain", size }),
+      ).resolves.toEqual({ asset, upload });
+      expect(JSON.parse(String(fetch.mock.calls[0]![1]?.body))).toMatchObject({
+        size,
+      });
+    },
+  );
+
+  it("validates empty asset identifiers", async () => {
     const client = createClient(vi.fn<typeof globalThis.fetch>());
 
     await expect(client.get("")).rejects.toBeInstanceOf(
       PointerAssetsInvalidArgumentError,
     );
-    await expect(
-      client.create({ name: "file", mimeType: "text/plain", size: -1 }),
-    ).rejects.toBeInstanceOf(PointerAssetsInvalidArgumentError);
   });
 });
 
