@@ -1,0 +1,43 @@
+name: Publish package
+
+on:
+  release:
+    types:
+      - created
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: npm-publish-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: npm
+      - name: Install OIDC-capable npm
+        run: npm install --global npm@12.1.0
+      - name: Require a stable release matching package.json
+        env:
+          RELEASE_DRAFT: ${{ github.event.release.draft }}
+          RELEASE_PRERELEASE: ${{ github.event.release.prerelease }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          test "$RELEASE_DRAFT" = "false"
+          test "$RELEASE_PRERELEASE" = "false"
+          npm run release:check -- "$RELEASE_TAG"
+      - run: npm ci
+      - run: npm run validate
+      - run: npm run build
+      - run: npm run package:check
+      - run: npm publish --access public --provenance

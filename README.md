@@ -412,6 +412,51 @@ The SDK targets modern browsers with `fetch`, `Headers`, `Response`, `Blob`, `UR
 - Portal contacts must not provide arbitrary customer context.
 - Keep the package framework independent; integrate it through the application's existing auth and state layers.
 
+## Development and release
+
+Use Node 20+ and the npm version declared in `packageManager`. Install exactly from the lockfile:
+
+```sh
+npm ci
+```
+
+Run the local validation gates:
+
+```sh
+npm run validate       # strict TypeScript check and unit tests
+npm run build          # clean ESM, CommonJS, source maps, and declarations
+npm run package:check  # tarball contents plus ESM/CJS/types consumer smoke tests
+```
+
+Inspect npm's package manifest directly when reviewing a release:
+
+```sh
+npm pack --dry-run --json --ignore-scripts
+```
+
+`prepack` cleans the output, runs validation, rebuilds, and verifies the package. This prevents `npm pack` or `npm publish` from producing a metadata-only or stale package from a clean checkout. The package allowlist ships only `package.json`, README, LICENSE, and the ESM/CJS/declaration outputs and their source maps under `dist`.
+
+### Release procedure
+
+Releases use stable SemVer tags with a required `v` prefix:
+
+1. Update `package.json` and `package-lock.json` to the intended stable version in a reviewed change.
+2. Merge that change and create the matching Git tag, for example `v1.2.3` for package version `1.2.3`.
+3. Create a non-draft, non-prerelease GitHub release for that existing tag.
+4. The `Publish package` workflow checks out the tag, verifies the tag exactly matches `v${package.json.version}`, installs with `npm ci`, runs all validation/build/package gates, and publishes with npm provenance.
+
+Ordinary pushes and tags do not publish. A mismatched tag, prerelease version, draft release, or GitHub prerelease fails before publication.
+
+The npm package owner must configure a one-time trusted publisher for `@we-made/pointer-assets-client` on npmjs.org:
+
+- Provider: **GitHub Actions**
+- Organization/user: **wemadefree**
+- Repository: **pointer-assets-client**
+- Workflow filename: **publish.yml**
+- Environment: leave empty (the workflow does not use a GitHub environment)
+
+The workflow uses pinned Node 24/npm 12 tooling and GitHub OIDC with `contents: read` and `id-token: write`, then runs `npm publish --access public --provenance`. Do not add an `NPM_TOKEN` secret as a fallback; trusted publishing must be configured before creating the release.
+
 ## License
 
 MIT
